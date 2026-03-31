@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
 import {
   alerts,
   categoryInsights,
@@ -8,29 +11,23 @@ import {
   trendData,
 } from "@/lib/mock-data";
 
-const levelStyles: Record<string, string> = {
-  High: "bg-red-50 text-red-600",
-  Medium: "bg-amber-50 text-amber-600",
-  Low: "bg-zinc-100 text-zinc-700",
-};
-
 const maxAlerts = Math.max(...trendData.map((item) => item.alerts));
 
 export default function DashboardPage() {
   return (
     <main className="mx-auto max-w-6xl px-6 py-12 lg:px-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm text-zinc-500">Dashboard</p>
-          <h1 className="text-4xl font-semibold tracking-tight text-zinc-950">Market overview</h1>
-        </div>
-        <Link
-          href="/alerts"
-          className="rounded-full border border-zinc-300 px-5 py-2.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-50"
-        >
-          View all alerts
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow="Dashboard"
+        title="Market overview"
+        action={
+          <Link
+            href="/alerts"
+            className="rounded-full border border-zinc-300 px-5 py-2.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-50"
+          >
+            View all alerts
+          </Link>
+        }
+      />
 
       <div className="mt-8 flex flex-col gap-4 rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
         <div>
@@ -63,10 +60,7 @@ export default function DashboardPage() {
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {dashboardStats.map((item) => (
-          <div key={item.label} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-zinc-500">{item.label}</p>
-            <p className="mt-3 text-3xl font-semibold text-zinc-950">{item.value}</p>
-          </div>
+          <StatCard key={item.label} label={item.label} value={item.value} />
         ))}
       </div>
 
@@ -77,7 +71,7 @@ export default function DashboardPage() {
               <h2 className="text-xl font-semibold">Alert volume trend</h2>
               <p className="mt-1 text-sm text-zinc-500">Mock 7-day activity by detected alerts</p>
             </div>
-            <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700">Last 7 days</span>
+            <Badge>Last 7 days</Badge>
           </div>
 
           <div className="mt-8 grid grid-cols-7 items-end gap-4">
@@ -130,8 +124,14 @@ export default function DashboardPage() {
             {alerts.slice(0, 4).map((alert) => (
               <div key={alert.id} className="rounded-2xl border border-zinc-200 p-5">
                 <div className="flex flex-wrap items-center gap-3 text-xs font-medium uppercase tracking-wide">
-                  <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-zinc-700">{alert.type}</span>
-                  <span className={`rounded-full px-2.5 py-1 ${levelStyles[alert.level]}`}>{alert.level}</span>
+                  <Badge>{alert.type}</Badge>
+                  <Badge
+                    variant={
+                      alert.level === "High" ? "high" : alert.level === "Medium" ? "medium" : "low"
+                    }
+                  >
+                    {alert.level}
+                  </Badge>
                   <span className="text-zinc-400">{alert.time}</span>
                 </div>
                 <h3 className="mt-3 text-lg font-semibold text-zinc-950">{alert.title}</h3>
@@ -153,9 +153,7 @@ export default function DashboardPage() {
                     <h3 className="text-base font-semibold text-zinc-950">{competitor.name}</h3>
                     <p className="mt-1 text-sm text-zinc-500">{competitor.region}</p>
                   </div>
-                  <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700">
-                    {competitor.status}
-                  </span>
+                  <Badge>{competitor.status}</Badge>
                 </div>
                 <p className="mt-4 text-sm leading-6 text-zinc-600">{competitor.focus}</p>
                 <div className="mt-4 flex items-center gap-6 text-sm text-zinc-500">
