@@ -194,3 +194,33 @@ export const monitoredPages = [
     status: "Optional",
   },
 ];
+
+export const dashboardStats = [
+  { label: "Competitors tracked", value: "24" },
+  { label: "Changes detected today", value: "18" },
+  { label: "High-priority alerts", value: "4" },
+  { label: "New products this week", value: "11" },
+];
+
+export const trendData = [
+  { label: "Mon", alerts: 4, price: 1, newProducts: 1 },
+  { label: "Tue", alerts: 6, price: 2, newProducts: 1 },
+  { label: "Wed", alerts: 5, price: 1, newProducts: 2 },
+  { label: "Thu", alerts: 9, price: 3, newProducts: 2 },
+  { label: "Fri", alerts: 7, price: 2, newProducts: 1 },
+  { label: "Sat", alerts: 3, price: 1, newProducts: 0 },
+  { label: "Sun", alerts: 8, price: 2, newProducts: 3 },
+];
+
+export const filterGroups = {
+  ranges: ["7d", "30d", "90d"],
+  types: ["All", "Price change", "New product", "Promotion update", "Messaging shift"],
+  regions: ["All regions", "US", "UK", "DE", "CA"],
+};
+
+export const categoryInsights = [
+  { label: "Hot peel film", value: 9 },
+  { label: "Sample packs", value: 5 },
+  { label: "Promotions", value: 7 },
+  { label: "Wholesale pages", value: 4 },
+];
