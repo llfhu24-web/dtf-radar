@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { alerts } from "@/lib/mock-data";
 
 const levelStyles: Record<string, string> = {
@@ -41,9 +42,12 @@ export default function AlertsPage() {
                 <p className="text-sm text-zinc-500">{alert.competitor}</p>
                 <p className="max-w-3xl text-sm leading-7 text-zinc-600">{alert.summary}</p>
               </div>
-              <button className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
+              <Link
+                href={`/alerts/${alert.id}`}
+                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+              >
                 View detail
-              </button>
+              </Link>
             </div>
           </article>
         ))}
