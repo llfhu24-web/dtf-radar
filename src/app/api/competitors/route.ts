@@ -8,7 +8,19 @@ const DEFAULT_WORKSPACE_ID = "workspace_demo";
 export async function GET() {
   try {
     const competitors = await listCompetitors(DEFAULT_WORKSPACE_ID);
-    return NextResponse.json({ items: competitors });
+    const items = competitors.map((competitor) => ({
+      id: competitor.id,
+      name: competitor.name,
+      websiteUrl: competitor.websiteUrl,
+      region: competitor.region,
+      status: competitor.status,
+      note: competitor.note,
+      monitoredPages: competitor.trackedPages.length,
+      changes7d: competitor.changeEvents.length,
+      createdAt: competitor.createdAt,
+    }));
+
+    return NextResponse.json({ items });
   } catch (error) {
     console.error("GET /api/competitors failed", error);
     return NextResponse.json({ error: "Failed to load competitors" }, { status: 500 });
