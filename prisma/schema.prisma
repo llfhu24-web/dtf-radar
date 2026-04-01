@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String      @unique
+  name         String?
+  passwordHash String?
+  authProvider String?     @default("local")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  workspaces   Workspace[]
+}
+
+model Workspace {
+  id          String       @id @default(cuid())
+  userId      String
+  name        String
+  plan        String       @default("starter")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id])
+  competitors Competitor[]
+  briefs      DailyBrief[]
+}
+
+model Competitor {
+  id            String         @id @default(cuid())
+  workspaceId   String
+  name          String
+  websiteUrl    String
+  region        String?
+  note          String?
+  status        String         @default("active")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id])
+  trackedPages  TrackedPage[]
+  changeEvents  ChangeEvent[]
+  discoveryJobs DiscoveryJob[]
+}
+
+model TrackedPage {
+  id              String         @id @default(cuid())
+  competitorId    String
+  url             String
+  pageType        String
+  title           String?
+  discoverySource String?
+  isActive        Boolean        @default(true)
+  priority        Int            @default(0)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  competitor      Competitor     @relation(fields: [competitorId], references: [id])
+  snapshots       PageSnapshot[]
+  changeEvents    ChangeEvent[]
+  crawlJobs       CrawlJob[]
+}
+
+model PageSnapshot {
+  id              String      @id @default(cuid())
+  trackedPageId   String
+  fetchedAt       DateTime    @default(now())
+  rawHtmlHash     String?
+  title           String?
+  metaDescription String?
+  h1              String?
+  mainText        String?
+  price           String?
+  comparePrice    String?
+  currency        String?
+  stockStatus     String?
+  ctaText         String?
+  promoText       String?
+  imageCount      Int?
+  specJson        Json?
+  faqJson         Json?
+  payloadJson     Json?
+
+  trackedPage     TrackedPage @relation(fields: [trackedPageId], references: [id])
+}
+
+model ChangeEvent {
+  id              String      @id @default(cuid())
+  competitorId    String
+  trackedPageId   String
+  snapshotFromId  String?
+  snapshotToId    String?
+  eventType       String
+  title           String
+  summary         String?
+  details         String?
+  importanceScore Int         @default(1)
+  oldValue        String?
+  newValue        String?
+  tagsJson        Json?
+  detectedAt      DateTime    @default(now())
+
+  competitor      Competitor  @relation(fields: [competitorId], references: [id])
+  trackedPage     TrackedPage @relation(fields: [trackedPageId], references: [id])
+}
+
+model DiscoveryJob {
+  id           String      @id @default(cuid())
+  competitorId String
+  status       String      @default("queued")
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  pagesFound   Int?
+  resultJson   Json?
+  errorMessage String?
+  createdAt    DateTime    @default(now())
+
+  competitor   Competitor  @relation(fields: [competitorId], references: [id])
+}
+
+model CrawlJob {
+  id            String      @id @default(cuid())
+  trackedPageId String
+  status        String      @default("queued")
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  fetchMode     String?
+  httpStatus    Int?
+  errorMessage  String?
+  createdAt     DateTime    @default(now())
+
+  trackedPage   TrackedPage @relation(fields: [trackedPageId], references: [id])
+}
+
+model DailyBrief {
+  id              String     @id @default(cuid())
+  workspaceId     String
+  date            DateTime
+  summaryMarkdown String?
+  topEventsJson   Json?
+  deliveryStatus  String?
+  createdAt       DateTime   @default(now())
+
+  workspace       Workspace  @relation(fields: [workspaceId], references: [id])
+}
