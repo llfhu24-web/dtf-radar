@@ -1,7 +1,15 @@
 import Link from "next/link";
-import { monitoredPages } from "@/lib/mock-data";
 
-export default function DiscoveryPage() {
+type DiscoveryPageProps = {
+  searchParams: Promise<{
+    competitorId?: string;
+  }>;
+};
+
+export default async function DiscoveryPage({ searchParams }: DiscoveryPageProps) {
+  const params = await searchParams;
+  const competitorId = params.competitorId;
+
   return (
     <main className="mx-auto max-w-5xl px-6 py-12 lg:px-8">
       <div className="flex items-center justify-between gap-4">
@@ -15,6 +23,12 @@ export default function DiscoveryPage() {
       </div>
 
       <section className="mt-8 rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm">
+        {competitorId ? (
+          <div className="mb-6 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 ring-1 ring-emerald-100">
+            Competitor created successfully. Temporary ID: <span className="font-medium">{competitorId}</span>
+          </div>
+        ) : null}
+
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-semibold">Suggested pages</h2>
@@ -37,13 +51,18 @@ export default function DiscoveryPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200">
-              {monitoredPages.map((page) => (
-                <tr key={page.id}>
-                  <td className="px-6 py-4 text-zinc-700">{page.url}</td>
-                  <td className="px-6 py-4 text-zinc-600">{page.type}</td>
+              {[
+                ["https://example.com/products/60cm-hot-peel-film", "Product", "Recommended"],
+                ["https://example.com/collections/dtf-film", "Category", "Recommended"],
+                ["https://example.com/pages/wholesale", "Landing page", "Optional"],
+                ["https://example.com/blogs/news", "Blog", "Optional"],
+              ].map(([url, type, status]) => (
+                <tr key={url}>
+                  <td className="px-6 py-4 text-zinc-700">{url}</td>
+                  <td className="px-6 py-4 text-zinc-600">{type}</td>
                   <td className="px-6 py-4">
                     <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700">
-                      {page.status}
+                      {status}
                     </span>
                   </td>
                 </tr>
