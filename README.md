@@ -24,6 +24,7 @@ This repository now includes a working backend-ready MVP skeleton with:
 - PM2 persistent run validated on the current server
 - Nginx reverse proxy validated on the current server
 - domain / HTTPS deployment plan documented
+- minimum operations runbook documented
 
 ## Stack
 - Next.js 16
@@ -255,10 +256,11 @@ This is enough to populate:
 - `docs/BACKEND-DATA-API-DESIGN.md`
 - `docs/DB-SETUP-AND-MIGRATIONS.md`
 - `docs/PRODUCTION-RUN.md`
+- `docs/OPERATIONS-RUNBOOK.md`
 
 ## Suggested next step
 The next valuable follow-up is one of:
 - attach a domain and HTTPS
 - write final domain-based Nginx config
-- add deployment rollback / restart runbook
+- add deployment rollback / restart runbook improvements
 - add a manual debug/admin entry for creating change events from the UI
