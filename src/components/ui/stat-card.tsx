@@ -1,6 +1,6 @@
 type Props = {
   label: string;
-  value: string;
+  value: string | number;
 };
 
 export function StatCard({ label, value }: Props) {
