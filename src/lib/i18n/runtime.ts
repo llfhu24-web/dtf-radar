@@ -94,7 +94,7 @@ export function translateCompetitorStatus(status: string, locale: Locale) {
   }
 }
 
-export function translateCrawlStatus(status: string, locale: Locale) {
+export function translateCrawlStatus(status: string | null | undefined, locale: Locale) {
   const t = getMessages(locale);
 
   switch (status) {
