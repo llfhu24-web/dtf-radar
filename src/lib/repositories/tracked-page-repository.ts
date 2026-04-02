@@ -1,8 +1,16 @@
 import { prisma } from "@/lib/db/prisma";
 
+export type TrackedPageInput = {
+  url: string;
+  pageType: string;
+  title?: string;
+  discoverySource?: string;
+  priority?: number;
+};
+
 export async function createTrackedPagesForCompetitor(
   competitorId: string,
-  pages: Array<{ url: string; pageType: string; title?: string; discoverySource?: string; priority?: number }>,
+  pages: TrackedPageInput[],
 ) {
   if (pages.length === 0) return [];
 
@@ -23,4 +31,15 @@ export async function createTrackedPagesForCompetitor(
     where: { competitorId },
     orderBy: { createdAt: "desc" },
   });
+}
+
+export async function replaceTrackedPagesForCompetitor(
+  competitorId: string,
+  pages: TrackedPageInput[],
+) {
+  await prisma.trackedPage.deleteMany({
+    where: { competitorId },
+  });
+
+  return createTrackedPagesForCompetitor(competitorId, pages);
 }
