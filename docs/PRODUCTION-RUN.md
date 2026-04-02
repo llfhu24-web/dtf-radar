@@ -81,6 +81,13 @@ Use this when you want to expose the app on port 80:
 Nginx :80 -> 127.0.0.1:3000 -> PM2 -> Next.js
 ```
 
+### Mode E: Domain + HTTPS
+Use this when you want a cleaner public URL and browser-trusted TLS:
+
+```bash
+https://your-domain.com -> Nginx :443 -> 127.0.0.1:3000 -> PM2 -> Next.js
+```
+
 ---
 
 ## Minimal server deployment flow
@@ -216,8 +223,118 @@ If external access still fails after Nginx is correct, check Tencent Cloud inbou
 
 This has already been validated for the current server.
 
-### HTTPS later
-Once DNS is pointed correctly, attach HTTPS with Certbot.
+---
+
+## Domain setup checklist
+Before attaching HTTPS, make sure all of the following are ready:
+
+1. You own a domain name
+2. You have a DNS record pointing to the server public IP
+3. Tencent Cloud inbound rules allow:
+   - TCP 80
+   - TCP 443
+4. Nginx is already serving the app on port 80
+
+### Example DNS records
+For root domain:
+- type: `A`
+- host: `@`
+- value: `SERVER_IP`
+
+For subdomain:
+- type: `A`
+- host: `app`
+- value: `SERVER_IP`
+
+Example final URLs:
+- `http://your-domain.com/dashboard`
+- `https://your-domain.com/dashboard`
+- `https://app.your-domain.com/dashboard`
+
+### DNS validation tip
+After updating DNS, verify resolution from your own machine:
+
+```bash
+dig your-domain.com +short
+nslookup your-domain.com
+```
+
+Both should resolve to the server public IP before requesting certificates.
+
+---
+
+## HTTPS with Certbot
+Once DNS is correct, the simplest path is Nginx + Certbot.
+
+### Install Certbot
+Ubuntu example:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y certbot python3-certbot-nginx
+```
+
+### Request certificate
+For apex domain:
+
+```bash
+sudo certbot --nginx -d your-domain.com
+```
+
+For apex + www:
+
+```bash
+sudo certbot --nginx -d your-domain.com -d www.your-domain.com
+```
+
+For subdomain:
+
+```bash
+sudo certbot --nginx -d app.your-domain.com
+```
+
+Certbot will usually:
+- issue the certificate
+- patch Nginx config automatically
+- optionally add HTTP -> HTTPS redirect
+
+### Recommended Certbot choices
+When prompted, choose:
+- keep redirect from HTTP to HTTPS: **yes**
+- use valid email for expiry reminders: **yes**
+
+### Test renewal
+After issuance, test auto-renewal:
+
+```bash
+sudo certbot renew --dry-run
+```
+
+---
+
+## Example domain-based Nginx config
+If you want to prepare a domain-based config before or after Certbot, use a pattern like this:
+
+```nginx
+server {
+    listen 80;
+    listen [::]:80;
+    server_name your-domain.com www.your-domain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+After Certbot, Nginx will typically add a `listen 443 ssl` block automatically.
 
 ---
 
@@ -315,11 +432,14 @@ For the current stage of this project, **PM2 + Nginx is now the validated practi
 ---
 
 ## Recommended next productionization steps
-1. Attach a domain
-2. Add HTTPS
-3. Stop exposing 3000 publicly
-4. Optionally replace PM2 with a dedicated systemd app service later
-5. Add deployment rollback / restart notes
+1. Point a domain to the server
+2. Open TCP 443 in Tencent Cloud
+3. Install Certbot
+4. Issue HTTPS certificate
+5. Redirect HTTP to HTTPS
+6. Stop exposing 3000 publicly
+7. Optionally replace PM2 with a dedicated systemd app service later
+8. Add deployment rollback / restart notes
 
 ---
 
@@ -342,6 +462,16 @@ systemctl status nginx --no-pager
 curl -I http://127.0.0.1/dashboard
 curl -I http://127.0.0.1/competitors
 curl -I http://127.0.0.1/alerts
+```
+
+### Check public HTTP response
+```bash
+curl -I http://your-domain.com/dashboard
+```
+
+### Check public HTTPS response
+```bash
+curl -I https://your-domain.com/dashboard
 ```
 
 Expected:
