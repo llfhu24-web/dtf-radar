@@ -23,6 +23,21 @@ Result:
 - Next.js started successfully
 - local verification to `http://127.0.0.1:3000/dashboard` returned `HTTP/1.1 200 OK`
 
+### PM2 persistent run
+Verified successfully on the server:
+
+```bash
+npm install -g pm2
+pm2 start npm --name dtf-radar -- start
+pm2 save
+pm2 startup
+```
+
+Result:
+- `dtf-radar` is managed by PM2
+- PM2 process list was saved
+- systemd startup for PM2 was enabled
+
 ---
 
 ## Current recommended run modes
@@ -40,6 +55,15 @@ Use this when you want a more realistic deployment check:
 ```bash
 npm run build
 npm run start
+```
+
+### Mode C: Persistent process with PM2
+Use this when you want the app to keep running after terminal exit or server reboot:
+
+```bash
+pm2 start npm --name dtf-radar -- start
+pm2 save
+pm2 startup
 ```
 
 ---
@@ -77,6 +101,13 @@ npx tsx prisma/seed.ts
 ```bash
 npm run build
 npm run start
+```
+
+### 6. Optional: hand off process control to PM2
+```bash
+pm2 start npm --name dtf-radar -- start
+pm2 save
+pm2 startup
 ```
 
 ---
@@ -169,16 +200,18 @@ pm2 status
 pm2 logs dtf-radar
 pm2 restart dtf-radar
 pm2 stop dtf-radar
+pm2 delete dtf-radar
 pm2 save
 pm2 startup
 ```
 
-Recommended after confirming it runs:
+### Current server status
+This project has already been started successfully with PM2 on the current server.
 
-```bash
-pm2 save
-pm2 startup
-```
+That means:
+- PM2 is installed
+- `dtf-radar` is running under PM2
+- PM2 startup has been enabled via systemd
 
 ---
 
@@ -236,29 +269,25 @@ sudo journalctl -u dtf-radar -f
 - you prefer OS-level service management
 - you want to integrate cleanly with other system services
 
-For the current stage of this project, **PM2 is the fastest practical choice**.
+For the current stage of this project, **PM2 is the best practical choice and is already running successfully on the current server**.
 
 ---
 
 ## Recommended next productionization steps
-1. Start app with PM2 or systemd
-2. Put Nginx in front of port 3000
-3. Point domain to server
-4. Add HTTPS
-5. Stop exposing 3000 publicly
+1. Put Nginx in front of port 3000
+2. Point domain to server
+3. Add HTTPS
+4. Stop exposing 3000 publicly
+5. Optionally replace PM2 with a dedicated systemd app service later
 
 ---
 
 ## Quick verification commands
 
-### Check build
+### Check PM2 process
 ```bash
-npm run build
-```
-
-### Check production start
-```bash
-npm run start
+pm2 status
+pm2 logs dtf-radar --lines 50
 ```
 
 ### Check local HTTP response on server
@@ -285,5 +314,6 @@ DTF Radar now has:
 - seed data
 - Nginx deployment guidance
 - PM2 / systemd run options
+- PM2 already installed and enabled on the current server
 
-That means the project is now ready for the next layer of server hardening and deployment polish.
+That means the project is now ready for the next layer of public-facing deployment polish.
