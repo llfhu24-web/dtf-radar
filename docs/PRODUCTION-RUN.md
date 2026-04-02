@@ -1,6 +1,6 @@
 # Production Run Guide
 
-This guide covers the current simplest server-side run flow for DTF Radar.
+This guide covers the current server-side deployment path for DTF Radar.
 
 ## What has already been verified
 On the current cloud server, the following checks were completed successfully:
@@ -34,13 +34,6 @@ Use during feature work:
 npm run dev -- --hostname 0.0.0.0 --port 3000
 ```
 
-Use this when:
-- actively coding
-- verifying UI changes quickly
-- testing from a cloud server on port 3000
-
----
-
 ### Mode B: Production-style run
 Use this when you want a more realistic deployment check:
 
@@ -48,11 +41,6 @@ Use this when you want a more realistic deployment check:
 npm run build
 npm run start
 ```
-
-This verifies:
-- the app can compile successfully
-- the app can boot in production mode
-- the app can serve HTTP responses correctly
 
 ---
 
@@ -71,17 +59,9 @@ cp .env.example .env
 Example:
 ```bash
 DATABASE_URL="postgresql://dtf_radar:dtf_radar_dev@localhost:5432/dtf_radar?schema=public"
-NEXT_PUBLIC_APP_URL="http://SERVER_IP:3000"
-NODE_ENV="development"
-```
-
-If running in a more production-like server mode, you can change:
-
-```bash
+NEXT_PUBLIC_APP_URL="http://SERVER_IP"
 NODE_ENV="production"
 ```
-
----
 
 ### 3. Run database migration
 ```bash
@@ -104,7 +84,7 @@ npm run start
 ## Accessing the app on a cloud server
 Because the app runs on the server, `localhost:3000` means the server itself.
 
-To view pages from your laptop/browser, you need one of these:
+To view pages from your laptop/browser, use one of these:
 
 ### Option 1: expose port 3000 temporarily
 - open TCP 3000 in the cloud firewall / security group
@@ -121,30 +101,151 @@ http://SERVER_IP:3000/alerts
 Forward server port 3000 to your local machine, then open `http://localhost:3000` locally.
 
 ### Option 3: reverse proxy with Nginx
-Recommended later for a cleaner deployment on port 80/443.
+Recommended for cleaner deployment on port 80/443.
+
+---
+
+## Nginx reverse proxy example
+Assume:
+- domain: `dtf.example.com`
+- app listens on `127.0.0.1:3000`
+
+Example Nginx server block:
+
+```nginx
+server {
+    listen 80;
+    server_name dtf.example.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+Typical Ubuntu path:
+
+```bash
+/etc/nginx/sites-available/dtf-radar
+```
+
+Enable it:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/dtf-radar /etc/nginx/sites-enabled/dtf-radar
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### HTTPS later
+Once DNS is pointed correctly, you can attach HTTPS with Certbot.
+
+---
+
+## PM2 run option
+PM2 is easier for quick Node app process management.
+
+### Install PM2
+```bash
+sudo npm install -g pm2
+```
+
+### Start app with PM2
+```bash
+cd /root/github/dtf-radar
+pm2 start npm --name dtf-radar -- start
+```
+
+### Useful PM2 commands
+```bash
+pm2 status
+pm2 logs dtf-radar
+pm2 restart dtf-radar
+pm2 stop dtf-radar
+pm2 save
+pm2 startup
+```
+
+Recommended after confirming it runs:
+
+```bash
+pm2 save
+pm2 startup
+```
+
+---
+
+## systemd run option
+systemd is better when you want a more standard Linux service setup.
+
+Example unit file:
+
+```ini
+[Unit]
+Description=DTF Radar Next.js App
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+WorkingDirectory=/root/github/dtf-radar
+Environment=NODE_ENV=production
+Environment=NEXT_PUBLIC_APP_URL=http://SERVER_IP
+Environment=DATABASE_URL=postgresql://dtf_radar:dtf_radar_dev@localhost:5432/dtf_radar?schema=public
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Suggested path:
+
+```bash
+/etc/systemd/system/dtf-radar.service
+```
+
+Commands:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now dtf-radar
+sudo systemctl status dtf-radar
+sudo journalctl -u dtf-radar -f
+```
+
+---
+
+## Which one should you choose?
+
+### Choose PM2 if:
+- you want the fastest path
+- you are still iterating quickly
+- you want simpler logs and restarts
+
+### Choose systemd if:
+- you want a more standard Linux service
+- you prefer OS-level service management
+- you want to integrate cleanly with other system services
+
+For the current stage of this project, **PM2 is the fastest practical choice**.
 
 ---
 
 ## Recommended next productionization steps
-Current setup is enough for server-side testing, but not a full production deployment yet.
-
-### Next step 1: process management
-Choose one:
-- `pm2`
-- `systemd`
-
-So the app can restart automatically if the process exits.
-
-### Next step 2: reverse proxy
-Set up Nginx to:
-- serve on port 80/443
-- proxy to `127.0.0.1:3000`
-- attach domain and HTTPS later
-
-### Next step 3: lock down direct port access
-After Nginx is in place:
-- stop exposing 3000 publicly
-- only expose 80/443
+1. Start app with PM2 or systemd
+2. Put Nginx in front of port 3000
+3. Point domain to server
+4. Add HTTPS
+5. Stop exposing 3000 publicly
 
 ---
 
@@ -182,5 +283,7 @@ DTF Radar now has:
 - working PostgreSQL-backed runtime
 - migration history
 - seed data
+- Nginx deployment guidance
+- PM2 / systemd run options
 
 That means the project is now ready for the next layer of server hardening and deployment polish.
