@@ -38,6 +38,14 @@ Result:
 - PM2 process list was saved
 - systemd startup for PM2 was enabled
 
+### Nginx reverse proxy
+Verified successfully on the server:
+- Nginx installed
+- site config created
+- port 80 proxying to `127.0.0.1:3000`
+- local curl checks passed
+- external browser access via `http://SERVER_IP/dashboard` succeeded after Tencent Cloud port 80 was opened
+
 ---
 
 ## Current recommended run modes
@@ -64,6 +72,13 @@ Use this when you want the app to keep running after terminal exit or server reb
 pm2 start npm --name dtf-radar -- start
 pm2 save
 pm2 startup
+```
+
+### Mode D: Public access through Nginx
+Use this when you want to expose the app on port 80:
+
+```bash
+Nginx :80 -> 127.0.0.1:3000 -> PM2 -> Next.js
 ```
 
 ---
@@ -103,11 +118,17 @@ npm run build
 npm run start
 ```
 
-### 6. Optional: hand off process control to PM2
+### 6. Hand off process control to PM2
 ```bash
 pm2 start npm --name dtf-radar -- start
 pm2 save
 pm2 startup
+```
+
+### 7. Put Nginx in front
+```bash
+sudo apt-get update && sudo apt-get install -y nginx
+sudo systemctl enable --now nginx
 ```
 
 ---
@@ -134,19 +155,19 @@ Forward server port 3000 to your local machine, then open `http://localhost:3000
 ### Option 3: reverse proxy with Nginx
 Recommended for cleaner deployment on port 80/443.
 
+This option has already been validated on the current server.
+
 ---
 
 ## Nginx reverse proxy example
-Assume:
-- domain: `dtf.example.com`
-- app listens on `127.0.0.1:3000`
-
-Example Nginx server block:
+Current validated site config pattern:
 
 ```nginx
 server {
-    listen 80;
-    server_name dtf.example.com;
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    server_name _;
 
     location / {
         proxy_pass http://127.0.0.1:3000;
@@ -161,7 +182,7 @@ server {
 }
 ```
 
-Typical Ubuntu path:
+Suggested path:
 
 ```bash
 /etc/nginx/sites-available/dtf-radar
@@ -170,13 +191,33 @@ Typical Ubuntu path:
 Enable it:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/dtf-radar /etc/nginx/sites-enabled/dtf-radar
-sudo nginx -t
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo ln -sf /etc/nginx/sites-available/dtf-radar /etc/nginx/sites-enabled/dtf-radar
+sudo /usr/sbin/nginx -t
 sudo systemctl reload nginx
 ```
 
+Verification:
+
+```bash
+curl -I http://127.0.0.1/dashboard
+curl -I http://127.0.0.1/competitors
+curl -I http://127.0.0.1/alerts
+```
+
+Expected:
+- `HTTP/1.1 200 OK`
+- `X-Powered-By: Next.js`
+
+### Tencent Cloud note
+If external access still fails after Nginx is correct, check Tencent Cloud inbound rules and allow:
+- TCP 80
+- source `0.0.0.0/0` (or your own IP range)
+
+This has already been validated for the current server.
+
 ### HTTPS later
-Once DNS is pointed correctly, you can attach HTTPS with Certbot.
+Once DNS is pointed correctly, attach HTTPS with Certbot.
 
 ---
 
@@ -269,16 +310,16 @@ sudo journalctl -u dtf-radar -f
 - you prefer OS-level service management
 - you want to integrate cleanly with other system services
 
-For the current stage of this project, **PM2 is the best practical choice and is already running successfully on the current server**.
+For the current stage of this project, **PM2 + Nginx is now the validated practical path on the current server**.
 
 ---
 
 ## Recommended next productionization steps
-1. Put Nginx in front of port 3000
-2. Point domain to server
-3. Add HTTPS
-4. Stop exposing 3000 publicly
-5. Optionally replace PM2 with a dedicated systemd app service later
+1. Attach a domain
+2. Add HTTPS
+3. Stop exposing 3000 publicly
+4. Optionally replace PM2 with a dedicated systemd app service later
+5. Add deployment rollback / restart notes
 
 ---
 
@@ -290,16 +331,23 @@ pm2 status
 pm2 logs dtf-radar --lines 50
 ```
 
+### Check Nginx
+```bash
+sudo /usr/sbin/nginx -t
+systemctl status nginx --no-pager
+```
+
 ### Check local HTTP response on server
 ```bash
-curl -I http://127.0.0.1:3000/dashboard
-curl -I http://127.0.0.1:3000/competitors
-curl -I http://127.0.0.1:3000/alerts
+curl -I http://127.0.0.1/dashboard
+curl -I http://127.0.0.1/competitors
+curl -I http://127.0.0.1/alerts
 ```
 
 Expected:
 ```bash
 HTTP/1.1 200 OK
+X-Powered-By: Next.js
 ```
 
 ---
@@ -315,5 +363,7 @@ DTF Radar now has:
 - Nginx deployment guidance
 - PM2 / systemd run options
 - PM2 already installed and enabled on the current server
+- Nginx reverse proxy already installed and validated on the current server
+- Tencent Cloud port 80 access already validated
 
-That means the project is now ready for the next layer of public-facing deployment polish.
+That means the project is now ready for domain and HTTPS setup.
