@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
-import { headers } from "next/headers";
 import "./globals.css";
-import { resolveLocale } from "@/lib/i18n/config";
 import { getMessages } from "@/lib/i18n/messages";
-import { swapLocaleInPath, withLocale } from "@/lib/i18n/runtime";
+import { withLocale } from "@/lib/i18n/runtime";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,17 +21,12 @@ export const metadata: Metadata = {
     "Competitor intelligence for DTF sellers: pricing, product launches, promotions, and messaging changes.",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const headerStore = await headers();
-  const searchParamsLang = headerStore.get("x-invoke-query-lang");
-  const pathname = headerStore.get("x-invoke-pathname") || "/";
-  const search = headerStore.get("x-invoke-query") || "";
-  const currentPath = search ? `${pathname}?${search}` : pathname;
-  const locale = resolveLocale(searchParamsLang);
+  const locale = "en" as const;
   const t = getMessages(locale);
 
   return (
@@ -64,20 +57,20 @@ export default async function RootLayout({
               </nav>
               <div className="flex items-center gap-2 text-xs">
                 <Link
-                  href={swapLocaleInPath(currentPath, "en")}
-                  className={`rounded-full px-3 py-1 ${locale === "en" ? "bg-zinc-950 text-white" : "bg-zinc-100 text-zinc-700"}`}
+                  href="/?lang=en"
+                  className="rounded-full bg-zinc-950 px-3 py-1 text-white"
                 >
                   EN
                 </Link>
                 <Link
-                  href={swapLocaleInPath(currentPath, "zh-Hans")}
-                  className={`rounded-full px-3 py-1 ${locale === "zh-Hans" ? "bg-zinc-950 text-white" : "bg-zinc-100 text-zinc-700"}`}
+                  href="/?lang=zh-Hans"
+                  className="rounded-full bg-zinc-100 px-3 py-1 text-zinc-700"
                 >
                   简中
                 </Link>
                 <Link
-                  href={swapLocaleInPath(currentPath, "zh-Hant")}
-                  className={`rounded-full px-3 py-1 ${locale === "zh-Hant" ? "bg-zinc-950 text-white" : "bg-zinc-100 text-zinc-700"}`}
+                  href="/?lang=zh-Hant"
+                  className="rounded-full bg-zinc-100 px-3 py-1 text-zinc-700"
                 >
                   繁中
                 </Link>
