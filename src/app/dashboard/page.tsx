@@ -2,18 +2,15 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
-import {
-  alerts,
-  categoryInsights,
-  competitors,
-  dashboardStats,
-  filterGroups,
-  trendData,
-} from "@/lib/mock-data";
+import { getDashboardSummary } from "@/lib/repositories/dashboard-repository";
+import { filterGroups } from "@/lib/mock-data";
 
-const maxAlerts = Math.max(...trendData.map((item) => item.alerts));
+const DEFAULT_WORKSPACE_ID = "workspace_demo";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const summary = await getDashboardSummary(DEFAULT_WORKSPACE_ID);
+  const maxAlerts = Math.max(...summary.trends.map((item) => item.alerts), 1);
+
   return (
     <main className="mx-auto max-w-6xl px-6 py-12 lg:px-8">
       <PageHeader
@@ -32,7 +29,7 @@ export default function DashboardPage() {
       <div className="mt-8 flex flex-col gap-4 rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="text-lg font-semibold">Filters</h2>
-          <p className="mt-1 text-sm text-zinc-500">Mock controls for time range, alert type, and region.</p>
+          <p className="mt-1 text-sm text-zinc-500">Controls for time range, alert type, and region.</p>
         </div>
         <div className="flex flex-wrap gap-3 text-sm">
           <div className="flex flex-wrap gap-2">
@@ -59,7 +56,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {dashboardStats.map((item) => (
+        {summary.stats.map((item) => (
           <StatCard key={item.label} label={item.label} value={item.value} />
         ))}
       </div>
@@ -69,13 +66,13 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-semibold">Alert volume trend</h2>
-              <p className="mt-1 text-sm text-zinc-500">Mock 7-day activity by detected alerts</p>
+              <p className="mt-1 text-sm text-zinc-500">Last 7 days of detected change events</p>
             </div>
             <Badge>Last 7 days</Badge>
           </div>
 
           <div className="mt-8 grid grid-cols-7 items-end gap-4">
-            {trendData.map((item) => (
+            {summary.trends.map((item) => (
               <div key={item.label} className="flex flex-col items-center gap-3">
                 <div className="flex h-48 items-end">
                   <div
@@ -94,19 +91,23 @@ export default function DashboardPage() {
 
         <section className="rounded-3xl border border-zinc-200 bg-zinc-50 p-6 shadow-sm">
           <h2 className="text-xl font-semibold">Top monitored themes</h2>
-          <p className="mt-1 text-sm text-zinc-500">Most frequent categories in recent competitor activity</p>
+          <p className="mt-1 text-sm text-zinc-500">Most frequent change types in recent activity</p>
           <div className="mt-6 space-y-4">
-            {categoryInsights.map((item) => (
-              <div key={item.label}>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-zinc-700">{item.label}</span>
-                  <span className="font-medium text-zinc-900">{item.value}</span>
+            {summary.themes.length > 0 ? (
+              summary.themes.map((item) => (
+                <div key={item.label}>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-zinc-700">{item.label}</span>
+                    <span className="font-medium text-zinc-900">{item.value}</span>
+                  </div>
+                  <div className="mt-2 h-2 rounded-full bg-white ring-1 ring-zinc-200">
+                    <div className="h-2 rounded-full bg-zinc-950" style={{ width: `${item.value * 10}%` }} />
+                  </div>
                 </div>
-                <div className="mt-2 h-2 rounded-full bg-white ring-1 ring-zinc-200">
-                  <div className="h-2 rounded-full bg-zinc-950" style={{ width: `${item.value * 10}%` }} />
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-sm text-zinc-500">No themes yet. Seed or create change events to populate this panel.</p>
+            )}
           </div>
         </section>
       </div>
@@ -121,24 +122,26 @@ export default function DashboardPage() {
           </div>
 
           <div className="mt-6 space-y-4">
-            {alerts.slice(0, 4).map((alert) => (
-              <div key={alert.id} className="rounded-2xl border border-zinc-200 p-5">
-                <div className="flex flex-wrap items-center gap-3 text-xs font-medium uppercase tracking-wide">
-                  <Badge>{alert.type}</Badge>
-                  <Badge
-                    variant={
-                      alert.level === "High" ? "high" : alert.level === "Medium" ? "medium" : "low"
-                    }
-                  >
-                    {alert.level}
-                  </Badge>
-                  <span className="text-zinc-400">{alert.time}</span>
+            {summary.latestAlerts.length > 0 ? (
+              summary.latestAlerts.map((alert) => (
+                <div key={alert.id} className="rounded-2xl border border-zinc-200 p-5">
+                  <div className="flex flex-wrap items-center gap-3 text-xs font-medium uppercase tracking-wide">
+                    <Badge>{alert.eventType}</Badge>
+                    <Badge variant={alert.importanceScore >= 8 ? "high" : alert.importanceScore >= 4 ? "medium" : "low"}>
+                      {alert.importanceScore >= 8 ? "High" : alert.importanceScore >= 4 ? "Medium" : "Low"}
+                    </Badge>
+                    <span className="text-zinc-400">{new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(alert.detectedAt)}</span>
+                  </div>
+                  <h3 className="mt-3 text-lg font-semibold text-zinc-950">{alert.title}</h3>
+                  <p className="mt-2 text-sm text-zinc-500">{alert.competitor.name}</p>
+                  <p className="mt-3 text-sm leading-6 text-zinc-600">{alert.summary || "No summary available yet."}</p>
                 </div>
-                <h3 className="mt-3 text-lg font-semibold text-zinc-950">{alert.title}</h3>
-                <p className="mt-2 text-sm text-zinc-500">{alert.competitor}</p>
-                <p className="mt-3 text-sm leading-6 text-zinc-600">{alert.summary}</p>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-zinc-200 p-5 text-sm text-zinc-500">
+                No alerts yet. Seed demo data or create change events to populate this section.
               </div>
-            ))}
+            )}
           </div>
         </section>
 
@@ -146,22 +149,30 @@ export default function DashboardPage() {
           <h2 className="text-xl font-semibold">Most active competitors</h2>
           <p className="mt-1 text-sm text-zinc-500">Based on changes detected in the last 7 days</p>
           <div className="mt-6 space-y-4">
-            {competitors.map((competitor) => (
-              <div key={competitor.id} className="rounded-2xl bg-white p-5 ring-1 ring-zinc-200">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="text-base font-semibold text-zinc-950">{competitor.name}</h3>
-                    <p className="mt-1 text-sm text-zinc-500">{competitor.region}</p>
+            {summary.activeCompetitors.length > 0 ? (
+              summary.activeCompetitors.map((competitor) => (
+                <div key={competitor.id} className="rounded-2xl bg-white p-5 ring-1 ring-zinc-200">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-base font-semibold text-zinc-950">{competitor.name}</h3>
+                      <p className="mt-1 text-sm text-zinc-500">{competitor.region || "—"}</p>
+                    </div>
+                    <Badge>{competitor.status}</Badge>
                   </div>
-                  <Badge>{competitor.status}</Badge>
+                  <p className="mt-4 text-sm leading-6 text-zinc-600">
+                    {competitor.note || "No competitor notes yet."}
+                  </p>
+                  <div className="mt-4 flex items-center gap-6 text-sm text-zinc-500">
+                    <span>{competitor.monitoredPages} pages</span>
+                    <span>{competitor.changes7d} changes / 7d</span>
+                  </div>
                 </div>
-                <p className="mt-4 text-sm leading-6 text-zinc-600">{competitor.focus}</p>
-                <div className="mt-4 flex items-center gap-6 text-sm text-zinc-500">
-                  <span>{competitor.monitoredPages} pages</span>
-                  <span>{competitor.changes7d} changes / 7d</span>
-                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl bg-white p-5 text-sm text-zinc-500 ring-1 ring-zinc-200">
+                No competitors yet. Add a competitor to start building real dashboard activity.
               </div>
-            ))}
+            )}
           </div>
         </section>
       </div>

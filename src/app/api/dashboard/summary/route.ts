@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
-import { alerts, categoryInsights, dashboardStats, trendData } from "@/lib/mock-data";
+import { getDashboardSummary } from "@/lib/repositories/dashboard-repository";
+
+const DEFAULT_WORKSPACE_ID = "workspace_demo";
 
 export async function GET() {
-  return NextResponse.json({
-    stats: dashboardStats,
-    trends: trendData,
-    themes: categoryInsights,
-    latestAlerts: alerts.slice(0, 4),
-  });
+  try {
+    const summary = await getDashboardSummary(DEFAULT_WORKSPACE_ID);
+    return NextResponse.json(summary);
+  } catch (error) {
+    console.error("GET /api/dashboard/summary failed", error);
+    return NextResponse.json({ error: "Failed to load dashboard summary" }, { status: 500 });
+  }
 }
