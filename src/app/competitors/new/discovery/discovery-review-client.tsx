@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -8,37 +8,68 @@ type DiscoveryPageProps = {
   competitorId?: string;
 };
 
-const suggestedPages = [
-  {
-    url: "https://example.com/products/60cm-hot-peel-film",
-    pageType: "product",
-    status: "Recommended",
-  },
-  {
-    url: "https://example.com/collections/dtf-film",
-    pageType: "category",
-    status: "Recommended",
-  },
-  {
-    url: "https://example.com/pages/wholesale",
-    pageType: "landing",
-    status: "Optional",
-  },
-  {
-    url: "https://example.com/blogs/news",
-    pageType: "blog",
-    status: "Optional",
-  },
-];
+type SuggestedPage = {
+  url: string;
+  pageType: string;
+  title?: string;
+  discoverySource?: string;
+  priority?: number;
+};
 
 export function DiscoveryReviewClient({ competitorId }: DiscoveryPageProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [error, setError] = useState("");
+  const [suggestions, setSuggestions] = useState<SuggestedPage[]>([]);
+  const [selectedUrls, setSelectedUrls] = useState<string[]>([]);
+
+  useEffect(() => {
+    async function loadSuggestions() {
+      if (!competitorId) return;
+
+      setLoadingSuggestions(true);
+      setError("");
+
+      try {
+        const response = await fetch(`/api/competitors/${competitorId}/discovery`, {
+          cache: "no-store",
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data?.error || "Failed to load suggestions");
+        }
+
+        const items: SuggestedPage[] = data?.items ?? [];
+        setSuggestions(items);
+        setSelectedUrls(items.map((item) => item.url));
+      } catch (loadError) {
+        setError(loadError instanceof Error ? loadError.message : "Unexpected error");
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    }
+
+    void loadSuggestions();
+  }, [competitorId]);
+
+  function toggleUrl(url: string) {
+    setSelectedUrls((prev) =>
+      prev.includes(url) ? prev.filter((item) => item !== url) : [...prev, url],
+    );
+  }
 
   async function handleConfirm() {
     if (!competitorId) {
       setError("Missing competitor id.");
+      return;
+    }
+
+    const selectedPages = suggestions.filter((page) => selectedUrls.includes(page.url));
+
+    if (selectedPages.length === 0) {
+      setError("Select at least one page to monitor.");
       return;
     }
 
@@ -52,13 +83,7 @@ export function DiscoveryReviewClient({ competitorId }: DiscoveryPageProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          pages: suggestedPages.map((page, index) => ({
-            url: page.url,
-            pageType: page.pageType,
-            title: page.url,
-            discoverySource: "mock-discovery",
-            priority: index,
-          })),
+          pages: selectedPages,
         }),
       });
 
@@ -88,10 +113,13 @@ export function DiscoveryReviewClient({ competitorId }: DiscoveryPageProps) {
         <div>
           <h2 className="text-xl font-semibold">Suggested pages</h2>
           <p className="mt-1 text-sm text-zinc-500">
-            These are the pages DTF Radar would start tracking for the new competitor.
+            These are derived from the competitor website and can be adjusted before monitoring starts.
           </p>
         </div>
-        <button className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
+        <button
+          onClick={() => window.location.reload()}
+          className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+        >
           Re-run discovery
         </button>
       </div>
@@ -100,23 +128,42 @@ export function DiscoveryReviewClient({ competitorId }: DiscoveryPageProps) {
         <table className="min-w-full divide-y divide-zinc-200 text-left text-sm">
           <thead className="bg-zinc-50 text-zinc-500">
             <tr>
+              <th className="px-6 py-4 font-medium">Pick</th>
               <th className="px-6 py-4 font-medium">URL</th>
               <th className="px-6 py-4 font-medium">Type</th>
-              <th className="px-6 py-4 font-medium">Suggested status</th>
+              <th className="px-6 py-4 font-medium">Source</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-200">
-            {suggestedPages.map((page) => (
-              <tr key={page.url}>
-                <td className="px-6 py-4 text-zinc-700">{page.url}</td>
-                <td className="px-6 py-4 text-zinc-600">{page.pageType}</td>
-                <td className="px-6 py-4">
-                  <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700">
-                    {page.status}
-                  </span>
+            {loadingSuggestions ? (
+              <tr>
+                <td colSpan={4} className="px-6 py-8 text-center text-zinc-500">
+                  Loading discovery suggestions...
                 </td>
               </tr>
-            ))}
+            ) : suggestions.length > 0 ? (
+              suggestions.map((page) => (
+                <tr key={page.url}>
+                  <td className="px-6 py-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedUrls.includes(page.url)}
+                      onChange={() => toggleUrl(page.url)}
+                      className="h-4 w-4 rounded border-zinc-300"
+                    />
+                  </td>
+                  <td className="px-6 py-4 text-zinc-700">{page.url}</td>
+                  <td className="px-6 py-4 text-zinc-600">{page.pageType}</td>
+                  <td className="px-6 py-4 text-zinc-500">{page.discoverySource || "unknown"}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={4} className="px-6 py-8 text-center text-zinc-500">
+                  No discovery suggestions available.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -126,7 +173,7 @@ export function DiscoveryReviewClient({ competitorId }: DiscoveryPageProps) {
       <div className="mt-8 flex flex-col gap-4 sm:flex-row">
         <button
           onClick={handleConfirm}
-          disabled={loading || !competitorId}
+          disabled={loading || !competitorId || loadingSuggestions}
           className="rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? "Saving tracked pages..." : "Confirm and start monitoring"}

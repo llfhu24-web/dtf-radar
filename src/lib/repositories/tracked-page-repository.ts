@@ -8,6 +8,33 @@ export type TrackedPageInput = {
   priority?: number;
 };
 
+function buildSuggestedPaths() {
+  return [
+    { path: "/products", pageType: "product", title: "Products" },
+    { path: "/collections", pageType: "category", title: "Collections" },
+    { path: "/pages/wholesale", pageType: "landing", title: "Wholesale" },
+    { path: "/blogs/news", pageType: "blog", title: "News" },
+  ];
+}
+
+export function buildDiscoverySuggestions(websiteUrl: string): TrackedPageInput[] {
+  let normalizedOrigin = websiteUrl;
+
+  try {
+    normalizedOrigin = new URL(websiteUrl).origin;
+  } catch {
+    normalizedOrigin = websiteUrl.replace(/\/$/, "");
+  }
+
+  return buildSuggestedPaths().map((item, index) => ({
+    url: `${normalizedOrigin}${item.path}`,
+    pageType: item.pageType,
+    title: item.title,
+    discoverySource: "derived-from-website",
+    priority: index,
+  }));
+}
+
 export async function createTrackedPagesForCompetitor(
   competitorId: string,
   pages: TrackedPageInput[],
