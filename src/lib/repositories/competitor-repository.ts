@@ -26,6 +26,25 @@ export async function listCompetitors(workspaceId: string) {
   });
 }
 
+export async function getCompetitorById(id: string, workspaceId: string) {
+  return prisma.competitor.findFirst({
+    where: {
+      id,
+      workspaceId,
+    },
+    include: {
+      trackedPages: {
+        where: { isActive: true },
+        orderBy: { createdAt: "desc" },
+      },
+      changeEvents: {
+        orderBy: { detectedAt: "desc" },
+        take: 10,
+      },
+    },
+  });
+}
+
 export async function createCompetitor(data: CreateCompetitorParams) {
   return prisma.competitor.create({
     data: {
