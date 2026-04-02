@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 
 export type CreatePageSnapshotInput = {
@@ -40,7 +41,12 @@ export async function createPageSnapshot(input: CreatePageSnapshotInput) {
       comparePrice: input.comparePrice ?? null,
       currency: input.currency ?? null,
       ctaText: input.ctaText ?? null,
-      payloadJson: input.payloadJson ?? null,
+      payloadJson:
+        input.payloadJson === undefined
+          ? undefined
+          : input.payloadJson === null
+            ? Prisma.JsonNull
+            : (input.payloadJson as Prisma.InputJsonValue),
     },
   });
 }
