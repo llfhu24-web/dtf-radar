@@ -354,7 +354,67 @@ psql "postgresql://dtf_radar:dtf_radar_dev@localhost:5432/dtf_radar" < dtf_radar
 
 ---
 
-## 11. Recommended next ops improvements
+## 11. Automated crawl scheduling
+DTF Radar now supports a global crawl endpoint:
+
+```bash
+POST /api/crawl/run-all
+```
+
+It also exposes a status endpoint:
+
+```bash
+GET /api/crawl/status
+```
+
+### Recommended minimal production scheduler: cron + curl
+Use the public Nginx URL on the same host so the scheduler exercises the deployed app path.
+
+Example every 2 hours:
+
+```bash
+0 */2 * * * curl -fsS -X POST http://127.0.0.1/api/crawl/run-all >/tmp/dtf-radar-crawl.log 2>&1
+```
+
+Example every hour:
+
+```bash
+0 * * * * curl -fsS -X POST http://127.0.0.1/api/crawl/run-all >/tmp/dtf-radar-crawl.log 2>&1
+```
+
+### Edit crontab
+```bash
+crontab -e
+```
+
+Then add one of the schedules above.
+
+### Verify cron is installed and running
+```bash
+systemctl status cron --no-pager
+```
+
+If missing on Ubuntu:
+```bash
+sudo apt-get update && sudo apt-get install -y cron
+sudo systemctl enable --now cron
+```
+
+### Verify scheduled crawl status later
+```bash
+curl http://127.0.0.1/api/crawl/status
+```
+
+Or inspect the dashboard panel in the app.
+
+### If you want timestamps in logs
+```bash
+0 */2 * * * date >> /tmp/dtf-radar-crawl.log && curl -fsS -X POST http://127.0.0.1/api/crawl/run-all >> /tmp/dtf-radar-crawl.log 2>&1
+```
+
+---
+
+## 12. Recommended next ops improvements
 When you want to harden this setup further, add:
 1. domain + HTTPS
 2. TCP 443 ingress
@@ -362,10 +422,11 @@ When you want to harden this setup further, add:
 4. deploy checklist before restart
 5. optional non-root app user
 6. optional dedicated systemd app service instead of PM2
+7. cron monitoring / alerting for scheduled crawl failures
 
 ---
 
-## 12. Minimum healthy-state checklist
+## 13. Minimum healthy-state checklist
 A healthy DTF Radar server currently means:
 - `pm2 status` shows `dtf-radar` as `online`
 - `systemctl status nginx` is healthy
@@ -373,3 +434,4 @@ A healthy DTF Radar server currently means:
 - external browser access works on port 80
 - PostgreSQL is reachable
 - latest code is committed and pushed
+- scheduled crawl endpoint is reachable if cron is enabled

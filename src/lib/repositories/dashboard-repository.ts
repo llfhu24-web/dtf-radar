@@ -1,126 +1,127 @@
 import { prisma } from "@/lib/db/prisma";
+import { getLatestGlobalCrawlRun } from "@/lib/repositories/global-crawl-run-repository";
 
 export async function getDashboardSummary(workspaceId: string) {
+  const [competitors, changeEvents, latestGlobalCrawlRun] = await Promise.all([
+    prisma.competitor.findMany({
+      where: { workspaceId },
+      include: {
+        trackedPages: {
+          where: { isActive: true },
+          select: { id: true },
+        },
+        changeEvents: {
+          where: {
+            detectedAt: {
+              gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+            },
+          },
+          select: { id: true },
+        },
+      },
+    }),
+    prisma.changeEvent.findMany({
+      where: {
+        competitor: {
+          workspaceId,
+        },
+      },
+      include: {
+        competitor: true,
+      },
+      orderBy: { detectedAt: "desc" },
+    }),
+    getLatestGlobalCrawlRun(workspaceId),
+  ]);
+
   const now = new Date();
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const trendDates = [6, 5, 4, 3, 2, 1, 0].map((offset) => {
+    const date = new Date(now);
+    date.setDate(now.getDate() - offset);
+    return date;
+  });
 
-  const [competitorsTracked, changesDetectedToday, highPriorityAlerts, newProductsThisWeek, latestAlerts, activeCompetitors, weeklyEvents] =
-    await Promise.all([
-      prisma.competitor.count({ where: { workspaceId } }),
-      prisma.changeEvent.count({
-        where: {
-          competitor: { workspaceId },
-          detectedAt: { gte: oneDayAgo },
-        },
-      }),
-      prisma.changeEvent.count({
-        where: {
-          competitor: { workspaceId },
-          importanceScore: { gte: 8 },
-          detectedAt: { gte: sevenDaysAgo },
-        },
-      }),
-      prisma.changeEvent.count({
-        where: {
-          competitor: { workspaceId },
-          eventType: "New product",
-          detectedAt: { gte: sevenDaysAgo },
-        },
-      }),
-      prisma.changeEvent.findMany({
-        where: {
-          competitor: { workspaceId },
-        },
-        orderBy: { detectedAt: "desc" },
-        take: 4,
-        include: {
-          competitor: { select: { name: true } },
-        },
-      }),
-      prisma.competitor.findMany({
-        where: { workspaceId },
-        include: {
-          trackedPages: {
-            where: { isActive: true },
-            select: { id: true },
-          },
-          changeEvents: {
-            where: { detectedAt: { gte: sevenDaysAgo } },
-            select: { id: true },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.changeEvent.findMany({
-        where: {
-          competitor: { workspaceId },
-          detectedAt: { gte: sevenDaysAgo },
-        },
-        orderBy: { detectedAt: "asc" },
-        select: {
-          detectedAt: true,
-          eventType: true,
-        },
-      }),
-    ]);
+  const trends = trendDates.map((date) => {
+    const alerts = changeEvents.filter((event) => {
+      return event.detectedAt.toDateString() === date.toDateString();
+    }).length;
 
-  const stats = [
-    { label: "Competitors tracked", value: String(competitorsTracked) },
-    { label: "Changes detected today", value: String(changesDetectedToday) },
-    { label: "High-priority alerts", value: String(highPriorityAlerts) },
-    { label: "New products this week", value: String(newProductsThisWeek) },
-  ];
+    return { label: date.toISOString(), alerts };
+  });
 
-  const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const trendsMap = new Map<string, { label: string; alerts: number; price: number; newProducts: number }>();
+  const themeCounts = changeEvents.reduce<Record<string, number>>((acc, event) => {
+    acc[event.eventType] = (acc[event.eventType] || 0) + 1;
+    return acc;
+  }, {});
 
-  for (let i = 6; i >= 0; i -= 1) {
-    const day = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-    const key = day.toISOString().slice(0, 10);
-    trendsMap.set(key, {
-      label: dayLabels[day.getDay()],
-      alerts: 0,
-      price: 0,
-      newProducts: 0,
-    });
-  }
+  const themes = Object.entries(themeCounts)
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 4);
 
-  for (const event of weeklyEvents) {
-    const key = event.detectedAt.toISOString().slice(0, 10);
-    const bucket = trendsMap.get(key);
-    if (!bucket) continue;
-    bucket.alerts += 1;
-    if (event.eventType === "Price change") bucket.price += 1;
-    if (event.eventType === "New product") bucket.newProducts += 1;
-  }
+  const latestAlerts = changeEvents.slice(0, 5);
 
-  const trends = Array.from(trendsMap.values());
-
-  const themeCounts = new Map<string, number>();
-  for (const event of weeklyEvents) {
-    const key = event.eventType;
-    themeCounts.set(key, (themeCounts.get(key) ?? 0) + 1);
-  }
-
-  const themes = Array.from(themeCounts.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 4)
-    .map(([label, value]) => ({ label, value }));
-
-  return {
-    stats,
-    trends,
-    themes,
-    latestAlerts,
-    activeCompetitors: activeCompetitors.map((competitor) => ({
+  const activeCompetitors = competitors
+    .map((competitor) => ({
       id: competitor.id,
       name: competitor.name,
       region: competitor.region,
-      status: competitor.status,
       note: competitor.note,
+      status: competitor.status,
       monitoredPages: competitor.trackedPages.length,
       changes7d: competitor.changeEvents.length,
-    })),
+    }))
+    .sort((a, b) => b.changes7d - a.changes7d)
+    .slice(0, 5);
+
+  const latestGlobalRunStats = (() => {
+    if (!latestGlobalCrawlRun || !latestGlobalCrawlRun.topEventsJson || typeof latestGlobalCrawlRun.topEventsJson !== "object") {
+      return null;
+    }
+
+    const data = latestGlobalCrawlRun.topEventsJson as {
+      totalCompetitors?: number;
+      totalPages?: number;
+      changedCount?: number;
+      failedCount?: number;
+    };
+
+    return {
+      id: latestGlobalCrawlRun.id,
+      createdAt: latestGlobalCrawlRun.createdAt,
+      status: latestGlobalCrawlRun.deliveryStatus,
+      totalCompetitors: data.totalCompetitors ?? 0,
+      totalPages: data.totalPages ?? 0,
+      changedCount: data.changedCount ?? 0,
+      failedCount: data.failedCount ?? 0,
+    };
+  })();
+
+  return {
+    stats: [
+      {
+        label: "Competitors",
+        value: competitors.length,
+      },
+      {
+        label: "Tracked pages",
+        value: competitors.reduce((sum, competitor) => sum + competitor.trackedPages.length, 0),
+      },
+      {
+        label: "Alerts in 7d",
+        value: changeEvents.filter(
+          (event) => event.detectedAt >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        ).length,
+      },
+      {
+        label: "High priority alerts",
+        value: changeEvents.filter((event) => event.importanceScore >= 8).length,
+      },
+    ],
+    trends,
+    themes,
+    latestAlerts,
+    activeCompetitors,
+    latestGlobalRunStats,
   };
 }

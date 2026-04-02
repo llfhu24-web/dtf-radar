@@ -26,6 +26,19 @@ export async function listCompetitors(workspaceId: string) {
   });
 }
 
+export async function listCompetitorsWithTrackedPages(workspaceId: string) {
+  return prisma.competitor.findMany({
+    where: { workspaceId },
+    orderBy: { createdAt: "desc" },
+    include: {
+      trackedPages: {
+        where: { isActive: true },
+        orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
+      },
+    },
+  });
+}
+
 export async function getCompetitorById(id: string, workspaceId: string) {
   return prisma.competitor.findFirst({
     where: {
@@ -36,10 +49,39 @@ export async function getCompetitorById(id: string, workspaceId: string) {
       trackedPages: {
         where: { isActive: true },
         orderBy: { createdAt: "desc" },
+        include: {
+          snapshots: {
+            orderBy: { fetchedAt: "desc" },
+            take: 3,
+          },
+          crawlJobs: {
+            orderBy: { createdAt: "desc" },
+            take: 3,
+          },
+          changeEvents: {
+            orderBy: { detectedAt: "desc" },
+            take: 3,
+          },
+        },
       },
       changeEvents: {
         orderBy: { detectedAt: "desc" },
         take: 10,
+      },
+    },
+  });
+}
+
+export async function getCompetitorWithTrackedPages(id: string, workspaceId: string) {
+  return prisma.competitor.findFirst({
+    where: {
+      id,
+      workspaceId,
+    },
+    include: {
+      trackedPages: {
+        where: { isActive: true },
+        orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
       },
     },
   });

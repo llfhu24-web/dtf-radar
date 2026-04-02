@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db/prisma";
 export type CreateChangeEventInput = {
   competitorId: string;
   trackedPageId: string;
+  snapshotFromId?: string;
+  snapshotToId?: string;
   eventType: string;
   title: string;
   summary?: string;
@@ -18,6 +20,8 @@ export async function createChangeEvent(input: CreateChangeEventInput) {
     data: {
       competitorId: input.competitorId,
       trackedPageId: input.trackedPageId,
+      snapshotFromId: input.snapshotFromId || null,
+      snapshotToId: input.snapshotToId || null,
       eventType: input.eventType,
       title: input.title,
       summary: input.summary || null,

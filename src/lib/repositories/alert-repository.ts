@@ -7,25 +7,12 @@ export async function listAlerts(workspaceId: string) {
         workspaceId,
       },
     },
-    orderBy: {
-      detectedAt: "desc",
-    },
+    orderBy: [{ detectedAt: "desc" }, { importanceScore: "desc" }],
     include: {
-      competitor: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-      trackedPage: {
-        select: {
-          id: true,
-          url: true,
-          title: true,
-          pageType: true,
-        },
-      },
+      competitor: true,
+      trackedPage: true,
     },
+    take: 50,
   });
 }
 
@@ -38,20 +25,28 @@ export async function getAlertById(id: string, workspaceId: string) {
       },
     },
     include: {
-      competitor: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-      trackedPage: {
-        select: {
-          id: true,
-          url: true,
-          title: true,
-          pageType: true,
-        },
-      },
+      competitor: true,
+      trackedPage: true,
     },
+  });
+}
+
+export async function getRecentAlertsForTrackedPage(trackedPageId: string, limit = 5) {
+  return prisma.changeEvent.findMany({
+    where: {
+      trackedPageId,
+    },
+    orderBy: { detectedAt: "desc" },
+    take: limit,
+  });
+}
+
+export async function getSnapshotsForTrackedPage(trackedPageId: string, limit = 5) {
+  return prisma.pageSnapshot.findMany({
+    where: {
+      trackedPageId,
+    },
+    orderBy: { fetchedAt: "desc" },
+    take: limit,
   });
 }

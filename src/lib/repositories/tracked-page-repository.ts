@@ -35,6 +35,19 @@ export function buildDiscoverySuggestions(websiteUrl: string): TrackedPageInput[
   }));
 }
 
+export async function getTrackedPageWithCompetitor(trackedPageId: string) {
+  return prisma.trackedPage.findUnique({
+    where: { id: trackedPageId },
+    include: {
+      competitor: true,
+      snapshots: {
+        orderBy: { fetchedAt: "desc" },
+        take: 1,
+      },
+    },
+  });
+}
+
 export async function createTrackedPagesForCompetitor(
   competitorId: string,
   pages: TrackedPageInput[],

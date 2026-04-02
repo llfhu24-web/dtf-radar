@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { listCompetitors } from "@/lib/repositories/competitor-repository";
+import { getMessages } from "@/lib/i18n/messages";
+import { getLocaleFromSearchParams, translateCompetitorStatus, withLocale } from "@/lib/i18n/runtime";
 
 type CompetitorListItem = {
   id: string;
@@ -32,21 +34,28 @@ async function getCompetitors(): Promise<CompetitorListItem[]> {
   }
 }
 
-export default async function CompetitorsPage() {
+export default async function CompetitorsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ lang?: string }>;
+}) {
+  const params = await searchParams;
+  const locale = getLocaleFromSearchParams(params);
+  const t = getMessages(locale);
   const competitors = await getCompetitors();
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-12 lg:px-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm text-zinc-500">Competitors</p>
-          <h1 className="text-4xl font-semibold tracking-tight text-zinc-950">Tracked competitor websites</h1>
+          <p className="text-sm text-zinc-500">{t.competitors.eyebrow}</p>
+          <h1 className="text-4xl font-semibold tracking-tight text-zinc-950">{t.competitors.title}</h1>
         </div>
         <Link
-          href="/competitors/new"
+          href={withLocale("/competitors/new", locale)}
           className="rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800"
         >
-          Add competitor
+          {t.competitors.addCompetitor}
         </Link>
       </div>
 
@@ -54,12 +63,12 @@ export default async function CompetitorsPage() {
         <table className="min-w-full divide-y divide-zinc-200 text-left text-sm">
           <thead className="bg-zinc-50 text-zinc-500">
             <tr>
-              <th className="px-6 py-4 font-medium">Competitor</th>
-              <th className="px-6 py-4 font-medium">Region</th>
-              <th className="px-6 py-4 font-medium">Monitored pages</th>
-              <th className="px-6 py-4 font-medium">Changes (7d)</th>
-              <th className="px-6 py-4 font-medium">Status</th>
-              <th className="px-6 py-4 font-medium">Notes</th>
+              <th className="px-6 py-4 font-medium">{t.competitors.competitor}</th>
+              <th className="px-6 py-4 font-medium">{t.competitors.region}</th>
+              <th className="px-6 py-4 font-medium">{t.competitors.monitoredPages}</th>
+              <th className="px-6 py-4 font-medium">{t.competitors.changes7d}</th>
+              <th className="px-6 py-4 font-medium">{t.competitors.status}</th>
+              <th className="px-6 py-4 font-medium">{t.competitors.notes}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-200">
@@ -68,7 +77,7 @@ export default async function CompetitorsPage() {
                 <tr key={competitor.id} className="align-top">
                   <td className="px-6 py-5">
                     <Link
-                      href={`/competitors/${competitor.id}`}
+                      href={withLocale(`/competitors/${competitor.id}`, locale)}
                       className="font-medium text-zinc-950 transition hover:text-zinc-700"
                     >
                       {competitor.name}
@@ -80,7 +89,7 @@ export default async function CompetitorsPage() {
                   <td className="px-6 py-5 text-zinc-600">{competitor.changes7d}</td>
                   <td className="px-6 py-5">
                     <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700">
-                      {competitor.status}
+                      {translateCompetitorStatus(competitor.status, locale)}
                     </span>
                   </td>
                   <td className="px-6 py-5 text-zinc-600">{competitor.note || "—"}</td>
@@ -89,7 +98,7 @@ export default async function CompetitorsPage() {
             ) : (
               <tr>
                 <td colSpan={6} className="px-6 py-10 text-center text-sm text-zinc-500">
-                  No competitors yet. Create your first one to start building a real monitored list.
+                  {t.competitors.empty}
                 </td>
               </tr>
             )}
