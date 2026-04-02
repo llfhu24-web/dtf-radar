@@ -10,8 +10,8 @@ export type CreateChangeEventInput = {
   summary?: string;
   details?: string;
   importanceScore?: number;
-  oldValue?: string;
-  newValue?: string;
+  oldValue?: string | null;
+  newValue?: string | null;
   tags?: string[];
 };
 
