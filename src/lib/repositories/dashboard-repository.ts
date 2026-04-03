@@ -2,7 +2,9 @@ import { prisma } from "@/lib/db/prisma";
 import { getLatestGlobalCrawlRun } from "@/lib/repositories/global-crawl-run-repository";
 
 export async function getDashboardSummary(workspaceId: string) {
-  const [competitors, changeEvents, latestGlobalCrawlRun] = await Promise.all([
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  const [competitors, changeEvents, latestGlobalCrawlRun, recentFailedCrawlJobs] = await Promise.all([
     prisma.competitor.findMany({
       where: { workspaceId },
       include: {
@@ -13,7 +15,7 @@ export async function getDashboardSummary(workspaceId: string) {
         changeEvents: {
           where: {
             detectedAt: {
-              gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+              gte: sevenDaysAgo,
             },
           },
           select: { id: true },
@@ -32,6 +34,25 @@ export async function getDashboardSummary(workspaceId: string) {
       orderBy: { detectedAt: "desc" },
     }),
     getLatestGlobalCrawlRun(workspaceId),
+    prisma.crawlJob.findMany({
+      where: {
+        status: "failed",
+        trackedPage: {
+          competitor: {
+            workspaceId,
+          },
+        },
+      },
+      include: {
+        trackedPage: {
+          include: {
+            competitor: true,
+          },
+        },
+      },
+      orderBy: { startedAt: "desc" },
+      take: 5,
+    }),
   ]);
 
   const now = new Date();
@@ -109,9 +130,7 @@ export async function getDashboardSummary(workspaceId: string) {
       },
       {
         label: "Alerts in 7d",
-        value: changeEvents.filter(
-          (event) => event.detectedAt >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-        ).length,
+        value: changeEvents.filter((event) => event.detectedAt >= sevenDaysAgo).length,
       },
       {
         label: "High priority alerts",
@@ -123,5 +142,19 @@ export async function getDashboardSummary(workspaceId: string) {
     latestAlerts,
     activeCompetitors,
     latestGlobalRunStats,
+    recentFailedCrawlJobs: recentFailedCrawlJobs.map((job) => ({
+      id: job.id,
+      status: job.status,
+      startedAt: job.startedAt,
+      finishedAt: job.finishedAt,
+      fetchMode: job.fetchMode,
+      httpStatus: job.httpStatus,
+      errorMessage: job.errorMessage,
+      trackedPageId: job.trackedPageId,
+      trackedPageUrl: job.trackedPage.url,
+      trackedPageTitle: job.trackedPage.title,
+      competitorId: job.trackedPage.competitorId,
+      competitorName: job.trackedPage.competitor.name,
+    })),
   };
 }

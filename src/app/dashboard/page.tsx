@@ -28,6 +28,11 @@ export default async function DashboardPage({
   const t = getMessages(locale);
   const summary = await getDashboardSummary(DEFAULT_WORKSPACE_ID);
   const maxAlerts = Math.max(...summary.trends.map((item) => item.alerts), 1);
+  const healthTone =
+    summary.recentFailedCrawlJobs.length > 0
+      ? "bg-amber-50 text-amber-700"
+      : "bg-emerald-50 text-emerald-700";
+  const healthLabel = summary.recentFailedCrawlJobs.length > 0 ? "Needs attention" : "Healthy";
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-12 lg:px-8">
@@ -47,9 +52,12 @@ export default async function DashboardPage({
       <div className="mt-6 rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-3">
-            <div>
-              <h2 className="text-lg font-semibold text-zinc-950">{t.dashboard.monitoringControl}</h2>
-              <p className="mt-1 text-sm text-zinc-500">{t.dashboard.monitoringSubtitle}</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-zinc-950">{t.dashboard.monitoringControl}</h2>
+                <p className="mt-1 text-sm text-zinc-500">{t.dashboard.monitoringSubtitle}</p>
+              </div>
+              <span className={`rounded-full px-3 py-1 text-xs font-medium ${healthTone}`}>{healthLabel}</span>
             </div>
             {summary.latestGlobalRunStats ? (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -181,11 +189,11 @@ export default async function DashboardPage({
               summary.themes.map((item) => (
                 <div key={item.label}>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-zinc-700">{item.label}</span>
+                    <span className="text-zinc-700">{translateEventType(item.label, locale)}</span>
                     <span className="font-medium text-zinc-900">{item.value}</span>
                   </div>
                   <div className="mt-2 h-2 rounded-full bg-white ring-1 ring-zinc-200">
-                    <div className="h-2 rounded-full bg-zinc-950" style={{ width: `${item.value * 10}%` }} />
+                    <div className="h-2 rounded-full bg-zinc-950" style={{ width: `${Math.min(item.value * 10, 100)}%` }} />
                   </div>
                 </div>
               ))
@@ -260,6 +268,55 @@ export default async function DashboardPage({
           </div>
         </section>
       </div>
+
+      <section className="mt-10 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-zinc-950">Recent crawl failures</h2>
+            <p className="mt-1 text-sm text-zinc-500">
+              Surface broken monitors quickly so scheduled crawling stays trustworthy.
+            </p>
+          </div>
+          <Link
+            href={withLocale("/dashboard", locale)}
+            className="text-sm text-zinc-500 transition hover:text-zinc-900"
+          >
+            Refresh status
+          </Link>
+        </div>
+
+        <div className="mt-6 space-y-4">
+          {summary.recentFailedCrawlJobs.length > 0 ? (
+            summary.recentFailedCrawlJobs.map((job) => (
+              <div key={job.id} className="rounded-2xl border border-zinc-200 p-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-zinc-500">
+                      <span className="rounded-full bg-red-50 px-2.5 py-1 text-red-700">{translateCrawlStatus(job.status, locale)}</span>
+                      <span>{formatDateTime(job.startedAt, locale)}</span>
+                      {job.httpStatus ? <span>HTTP {job.httpStatus}</span> : null}
+                    </div>
+                    <h3 className="mt-2 text-base font-semibold text-zinc-950">{job.trackedPageTitle || job.trackedPageUrl}</h3>
+                    <p className="mt-1 text-sm text-zinc-500">{job.competitorName}</p>
+                    <p className="mt-3 break-all text-xs text-zinc-400">{job.trackedPageUrl}</p>
+                    <p className="mt-3 text-sm leading-6 text-zinc-600">{job.errorMessage || "Unknown crawl failure"}</p>
+                  </div>
+                  <Link
+                    href={withLocale(`/competitors/${job.competitorId}`, locale)}
+                    className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50"
+                  >
+                    Inspect competitor
+                  </Link>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-700">
+              No recent crawl failures. Scheduled monitoring looks healthy right now.
+            </div>
+          )}
+        </div>
+      </section>
     </main>
   );
 }
